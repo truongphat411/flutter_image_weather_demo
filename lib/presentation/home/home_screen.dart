@@ -1,12 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_image_weather_demo/presentation/home/widgets/home_tile.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/routes/route_path.dart';
+import '../../core/core.dart';
 import '../../domain/entities/entities.dart';
 import '../components/common_app_bar.dart';
 import 'bloc/home_bloc.dart';
 import 'bloc/home_state.dart';
+
+part 'widgets/home_tile.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -77,7 +79,7 @@ class HomeScreen extends StatelessWidget {
                     itemCount: images.length,
                     itemBuilder: (context, index) {
                       final image = images[index];
-                      return HomeTile(
+                      return _HomeTile(
                         imageUrl: image.url ?? '',
                         onTap: () {
                           context.push(

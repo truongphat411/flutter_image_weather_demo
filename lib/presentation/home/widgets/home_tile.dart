@@ -1,8 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+part of '../home_screen.dart';
 
-class HomeTile extends StatelessWidget {
-  const HomeTile({
+class _HomeTile extends StatelessWidget {
+  const _HomeTile({
     required this.imageUrl,
     this.onTap,
     super.key,
