@@ -65,7 +65,7 @@ import Flutter
     let fileURL = documents.appendingPathComponent(fileName)
     try imageData.write(to: fileURL)
     
-    print("✅ Image saved at: \(fileURL.path)")
+    print("Image saved at: \(fileURL.path)")
     return fileURL.path
   }
 }
