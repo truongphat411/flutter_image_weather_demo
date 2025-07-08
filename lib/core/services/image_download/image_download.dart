@@ -5,7 +5,7 @@ class ImageDownload {
   static Future<String> downloadAndResizeImage(String imageUrl) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
       final filePath = '${directory.path}/$fileName';
 
       final result =
