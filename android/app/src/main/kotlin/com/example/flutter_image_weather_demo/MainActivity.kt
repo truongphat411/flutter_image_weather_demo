@@ -2,6 +2,7 @@ package com.example.flutter_image_weather_demo
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Environment
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -39,6 +40,7 @@ class MainActivity : FlutterActivity() {
 
         scope.launch {
             try {
+                // Run image processing on IO dispatcher (background thread)
                 val filePath = withContext(Dispatchers.IO) {
                     val url = URL(imageUrl)
                     val connection = url.openConnection()
@@ -58,21 +60,24 @@ class MainActivity : FlutterActivity() {
                         true
                     )
 
-                    val file = File(outputPath)
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val fileName = outputPath.substringAfterLast("/")
+                    val file = File(downloadsDir, fileName)
                     FileOutputStream(file).use { outputStream ->
-                        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
                     }
 
                     bitmap.recycle()
                     resizedBitmap.recycle()
 
-                    outputPath
+                    file.absolutePath
                 }
 
                 result.success(filePath)
             } catch (e: Exception) {
                 result.error("PROCESSING_ERROR", e.message, null)
             } finally {
+                // Cancel scope to clean up
                 scope.cancel()
             }
         }
