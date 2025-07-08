@@ -5,6 +5,7 @@ import 'data/repositories_impl/repositories_impl.dart';
 import 'domain/repositories/repositories.dart';
 import 'domain/usecases/usecases.dart';
 import 'presentation/home/bloc/home_bloc.dart';
+import 'presentation/image_viewer/bloc/image_viewer_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -14,6 +15,7 @@ void init() {
         imageUseCase: getIt<ImageUseCase>(),
         weatherUseCase: getIt<WeatherUseCase>(),
       ));
+  getIt.registerFactory(() => ImageViewerBloc());
 
   /// UseCases
   getIt.registerLazySingleton(

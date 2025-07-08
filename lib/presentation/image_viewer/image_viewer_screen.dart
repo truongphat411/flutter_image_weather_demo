@@ -2,8 +2,13 @@ import 'dart:developer';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_image_weather_demo/presentation/components/common_app_bar.dart';
-import '../../core/services/image_download_service.dart';
+import 'package:flutter_image_weather_demo/presentation/image_viewer/bloc/image_viewer_bloc.dart';
+
+import '../../core/core.dart';
+import 'bloc/image_viewer_event.dart';
+import 'bloc/image_viewer_state.dart';
 
 class ImageViewerScreen extends StatelessWidget {
   const ImageViewerScreen({
@@ -13,22 +18,6 @@ class ImageViewerScreen extends StatelessWidget {
 
   final String imageUrl;
 
-  Future<void> _downloadImage(BuildContext context) async {
-    try {
-      String fileName = Uri.parse(imageUrl).pathSegments.last.split('?').first;
-      if (fileName.isEmpty || !fileName.contains('.')) {
-        fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      }
-
-      await ImageDownloadService().downloadAndResizeImage(
-        imageUrl,
-        fileName,
-      );
-    } catch (e) {
-      log('Error downloading image: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,13 +26,22 @@ class ImageViewerScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF333333),
         isIconBack: false,
         actions: [
-          IconButton(
-            icon: Image.asset(
-              'assets/ic_download.png',
-              color: Colors.white,
-              height: 30,
-            ),
-            onPressed: () => _downloadImage(context),
+          BlocBuilder<ImageViewerBloc, ImageViewerState>(
+            buildWhen: (p, c) => p.runtimeType != c.runtimeType,
+            builder: (context, state) {
+              return IconButton(
+                icon: Image.asset(
+                  'assets/ic_download.png',
+                  color: Colors.white,
+                  height: 30,
+                ),
+                onPressed: state is ImageViewerDownloading
+                    ? null
+                    : () => context
+                        .read<ImageViewerBloc>()
+                        .add(DownloadImage(imageUrl)),
+              );
+            },
           ),
           IconButton(
             icon: Image.asset(

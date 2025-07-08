@@ -2,8 +2,6 @@ package com.example.flutter_image_weather_demo
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.os.Environment
-import androidx.lifecycle.lifecycleScope
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,26 +17,12 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "image_download")
             .setMethodCallHandler { call, result ->
                 if (call.method == "downloadAndResizeImage") {
-                    val url = call.argument<String>("url")
-                    val fileName = call.argument<String>("fileName")
-
-                    if (url.isNullOrEmpty() || fileName.isNullOrEmpty()) {
-                        result.error("INVALID_ARGUMENTS", "Missing URL or fileName", null)
-                        return@setMethodCallHandler
-                    }
-
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        try {
-                            val savedPath = downloadAndResizeImage(url, fileName)
-                            android.util.Log.d("ImageDownload", "Image saved successfully at $savedPath")
-                            withContext(Dispatchers.Main) {
-                                result.success(savedPath)
-                            }
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                result.error("ERROR", e.message, null)
-                            }
-                        }
+                    val imageUrl = call.argument<String>("imageUrl")
+                    val outputPath = call.argument<String>("outputPath")
+                    if (imageUrl != null && outputPath != null) {
+                        downloadAndResizeImage(imageUrl, outputPath, result)
+                    } else {
+                        result.error("INVALID_ARGS", "Missing arguments", null)
                     }
                 } else {
                     result.notImplemented()
@@ -46,19 +30,51 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun downloadAndResizeImage(url: String, fileName: String): String {
-        val input = URL(url).openStream()
-        val bitmap = BitmapFactory.decodeStream(input)
-        val resized = Bitmap.createScaledBitmap(bitmap, bitmap.width / 2, bitmap.height / 2, true)
+    private fun downloadAndResizeImage(
+        imageUrl: String,
+        outputPath: String,
+        result: MethodChannel.Result
+    ) {
+        val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-        val dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-        val file = File(dir, fileName)
+        scope.launch {
+            try {
+                val filePath = withContext(Dispatchers.IO) {
+                    val url = URL(imageUrl)
+                    val connection = url.openConnection()
+                    connection.connect()
+                    val inputStream = connection.getInputStream()
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    inputStream.close()
 
-        val out = FileOutputStream(file)
-        resized.compress(Bitmap.CompressFormat.JPEG, 90, out)
-        out.flush()
-        out.close()
+                    if (bitmap == null) {
+                        throw Exception("Failed to decode image")
+                    }
 
-        return file.absolutePath
+                    val resizedBitmap = Bitmap.createScaledBitmap(
+                        bitmap,
+                        bitmap.width / 2,
+                        bitmap.height / 2,
+                        true
+                    )
+
+                    val file = File(outputPath)
+                    FileOutputStream(file).use { outputStream ->
+                        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                    }
+
+                    bitmap.recycle()
+                    resizedBitmap.recycle()
+
+                    outputPath
+                }
+
+                result.success(filePath)
+            } catch (e: Exception) {
+                result.error("PROCESSING_ERROR", e.message, null)
+            } finally {
+                scope.cancel()
+            }
+        }
     }
 }

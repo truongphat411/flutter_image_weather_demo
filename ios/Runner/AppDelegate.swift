@@ -9,63 +9,63 @@ import Flutter
   ) -> Bool {
     let controller = window?.rootViewController as! FlutterViewController
     let channel = FlutterMethodChannel(name: "image_download", binaryMessenger: controller.binaryMessenger)
-    
+
     channel.setMethodCallHandler { (call, result) in
       if call.method == "downloadAndResizeImage" {
-        self.handleDownloadAndResize(call: call, result: result)
+        guard let args = call.arguments as? [String: String],
+            let imageUrl = args["imageUrl"],
+            let outputPath = args["outputPath"] else {
+          result(FlutterError(code: "INVALID_ARGS", message: "Missing arguments", details: nil))
+          return
+        }
+        self.downloadAndResizeImage(imageUrl: imageUrl, outputPath: outputPath, result: result)
       } else {
         result(FlutterMethodNotImplemented)
       }
     }
-    
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  private func handleDownloadAndResize(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    guard let args = call.arguments as? [String: Any],
-          let urlString = args["url"] as? String,
-          let fileName = args["fileName"] as? String,
-          let url = URL(string: urlString) else {
-      result(FlutterError(code: "BAD_ARGS", message: "Missing or invalid arguments", details: nil))
-      return
-    }
-
-    DispatchQueue.global().async {
+  private func downloadAndResizeImage(imageUrl: String, outputPath: String, result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .userInitiated).async {
       do {
-        let savedPath = try self.downloadResizeAndSaveImage(from: url, fileName: fileName)
-        DispatchQueue.main.async {
-          result(savedPath)
+        guard let url = URL(string: imageUrl),
+            let data = try? Data(contentsOf: url),
+            let image = UIImage(data: data) else {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "DECODE_ERROR", message: "Failed to decode image", details: nil))
+          }
+          return
+        }
+
+        let newSize = CGSize(width: image.size.width / 2, height: image.size.height / 2)
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        guard let resizedImage = UIGraphicsGetImageFromCurrentImageContext() else {
+          UIGraphicsEndImageContext()
+          DispatchQueue.main.async {
+            result(FlutterError(code: "RESIZE_ERROR", message: "Failed to resize image", details: nil))
+          }
+          return
+        }
+        UIGraphicsEndImageContext()
+
+        if let jpegData = resizedImage.jpegData(compressionQuality: 0.8) {
+          try jpegData.write(to: URL(fileURLWithPath: outputPath))
+          DispatchQueue.main.async {
+            result(outputPath)
+          }
+        } else {
+          DispatchQueue.main.async {
+            result(FlutterError(code: "SAVE_ERROR", message: "Failed to save image as JPEG", details: nil))
+          }
         }
       } catch {
         DispatchQueue.main.async {
-          result(FlutterError(code: "ERROR", message: error.localizedDescription, details: nil))
+          result(FlutterError(code: "PROCESSING_ERROR", message: error.localizedDescription, details: nil))
         }
       }
     }
-  }
-
-  private func downloadResizeAndSaveImage(from url: URL, fileName: String) throws -> String {
-    let data = try Data(contentsOf: url)
-    guard let image = UIImage(data: data) else {
-      throw NSError(domain: "decode", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to decode image"])
-    }
-
-    let newSize = CGSize(width: image.size.width / 2, height: image.size.height / 2)
-    UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
-    image.draw(in: CGRect(origin: .zero, size: newSize))
-    let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-    UIGraphicsEndImageContext()
-
-    guard let finalImage = resizedImage,
-          let imageData = finalImage.jpegData(compressionQuality: 0.9) else {
-      throw NSError(domain: "resize", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to resize image"])
-    }
-
-    let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-    let fileURL = documents.appendingPathComponent(fileName)
-    try imageData.write(to: fileURL)
-    
-    print("Image saved at: \(fileURL.path)")
-    return fileURL.path
   }
 }

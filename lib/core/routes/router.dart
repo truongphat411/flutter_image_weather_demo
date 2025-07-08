@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../presentation/home/bloc/home_bloc.dart';
 import '../../presentation/home/bloc/home_event.dart';
+import '../../presentation/image_viewer/bloc/image_viewer_bloc.dart';
 import '../../service_locator.dart';
 import 'route_path.dart';
 
@@ -24,8 +25,11 @@ final router = GoRouter(
           path: RouterPath.imageViewer,
           builder: (context, state) {
             final imageUrl = state.uri.queryParameters['imageUrl'] ?? '';
-            return ImageViewerScreen(
-              imageUrl: imageUrl,
+            return BlocProvider(
+              create: (_) => getIt<ImageViewerBloc>(),
+              child: ImageViewerScreen(
+                imageUrl: imageUrl,
+              ),
             );
           },
         ),
